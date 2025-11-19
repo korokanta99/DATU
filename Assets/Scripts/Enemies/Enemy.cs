@@ -17,6 +17,7 @@ public class Enemy : MonoBehaviour
 
     protected float recoilTimer;
     protected Rigidbody2D rb;
+    protected SpriteRenderer sr;
     protected AudioManager audioManager;
     //[Header("Health")]
     //[SerializeField][Range(0, 5)] float attack_range = 1;
@@ -28,42 +29,22 @@ public class Enemy : MonoBehaviour
     //float player_distance;
     //[SerializeField] bool ready_to_attack;
 
+
+
     public void Init(MessyController player, Vector3 coordinates)
     {
         // populates the private fields of this Enemy object to be used by whatever methods nad logic the enemy class has.
         this.player = player;
         transform.position = coordinates;
-
-        rb = GetComponent<Rigidbody2D>();
-
                 
     }
 
     protected virtual void Awake()
     {
-        GameObject audioObject = GameObject.FindGameObjectWithTag("Audio");
-
-        if (audioObject == null)
-        {
-            Debug.LogError("No GameObject with tag 'Audio' found in scene!");
-        }
-        else
-        {
-            Debug.Log("Found Audio GameObject: " + audioObject.name);
-            audioManager = audioObject.GetComponent<AudioManager>();
-
-            if (audioManager == null)
-            {
-                Debug.LogError("AudioManager component not found on " + audioObject.name);
-            }
-            else
-            {
-                Debug.Log("AudioManager successfully initialized!");
-            }
-        }
-
         rb = GetComponent<Rigidbody2D>();
+        sr = GetComponent<SpriteRenderer>();
         player = MessyController.Instance;
+        audioManager = AudioManager.Instance;
     }
 
     protected virtual void Update()
@@ -92,11 +73,21 @@ public class Enemy : MonoBehaviour
         beenHit = true;
 
         audioManager.PlaySFX(audioManager.hurt2);
+        StartCoroutine(HurtEffect());
+
+
 
         if (!isRecoiling)
         {
             rb.AddForce(-_hitForce * recoilFactor * _hitDirection);
         }
+    }
+
+    IEnumerator HurtEffect()
+    {
+        sr.color = Color.red;
+        yield return new WaitForSeconds(0.1f);
+        sr.color = Color.white;
     }
     protected void OnTriggerStay2D(Collider2D _other)
     {

@@ -10,6 +10,8 @@ public class PlayerStateList : MonoBehaviour
     public bool canMove = true;
     public bool canJump = true;
     public bool canAttack = true;
+
+    public bool Blocking = false;
     public bool recoilingX, recoilingY;
     public bool lookingRight;
     public bool invincible;

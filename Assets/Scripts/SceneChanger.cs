@@ -9,7 +9,7 @@ public class SceneChanger : MonoBehaviour
     void Update()
     {
         changeTime -= Time.deltaTime;
-        if(changeTime <= 0)
+        if(changeTime <= 0 || Input.GetKey(KeyCode.Escape))
         {
             SceneManager.LoadScene(sceneName);
         }

@@ -120,15 +120,14 @@ public class MessyController : MonoBehaviour
     AudioManager audioManager;
 
     [Header("Heal Settings")]
-    private bool canHeal = false;
+    private bool canHeal = true;
 
     private int healAmount = 2;
 
     [SerializeField] float HealTimer = 10f;
 
     [Header("Debug Settings")]
-    [SerializeField] private bool debugTextOn = true;
-    private TextMeshProUGUI debugText;
+    // [SerializeField] private bool debugTextOn = true;
 
     [Space(5)]
 
@@ -144,24 +143,10 @@ public class MessyController : MonoBehaviour
     //Input Variables
     private float xAxis, yAxis;
     private bool attack = false;
+    private bool block = false;
     public static MessyController Instance { get; private set; }
-
     private void Awake()
     {
-        // Initialize AudioManage
-        GameObject audioObject = GameObject.FindGameObjectWithTag("Audio");
-        if (audioObject != null)
-        {
-            audioManager = audioObject.GetComponent<AudioManager>();
-            if (audioManager == null)
-            {
-                Debug.LogError("AudioManager component not found on Audio GameObject!");
-            }
-        }
-        else
-        {
-            Debug.LogError("No GameObject with tag 'Audio' found!");
-        }
 
         // Singleton pattern
         if (Instance != null && Instance != this)
@@ -173,11 +158,17 @@ public class MessyController : MonoBehaviour
             Instance = this;
         }
         health = maxHealth;
+
+        
     }
 
     // Start is called before the first frame update
     void Start()
     {
+        audioManager = AudioManager.Instance;
+
+        respawnPoint.transform.SetParent(respawnPoint.transform, true);
+        fallThresholdY.transform.SetParent(fallThresholdY.transform, true);
         pState = GetComponent<PlayerStateList>();
 
         rb = GetComponent<Rigidbody2D>();
@@ -212,6 +203,10 @@ public class MessyController : MonoBehaviour
     void Update()
     {
 
+        if (OptionsManager.Instance != null && OptionsManager.Instance.IsMenuOpen)
+        return;
+
+
         if (isDead) return;
 
         if (transform.position.y < fallThresholdY.position.y || health <= 0)
@@ -224,8 +219,9 @@ public class MessyController : MonoBehaviour
 
         if (pState.dashing) return;
         Flip();
-        bool halt = pState.canMove || !pState.canAttack;
-        if (halt) Move();
+
+
+        Move();
         if (pState.canJump) Jump();
         StartDash();
         Attack();
@@ -242,8 +238,6 @@ public class MessyController : MonoBehaviour
                 anim.SetBool("Attack1", false);
                 anim.SetBool("Attack2", false);
                 anim.SetBool("Attack3", false);
-
-                Debug.Log("Combo Timer Finished");
             }
         }
 
@@ -251,7 +245,6 @@ public class MessyController : MonoBehaviour
         {
             Heal(healAmount); // heals 2 HP
         }
-
 
         HandleProjectileMode();
 
@@ -306,6 +299,7 @@ public class MessyController : MonoBehaviour
 
         yAxis = Input.GetAxisRaw("Vertical");
         attack = Input.GetMouseButtonDown(0);
+        block = Input.GetMouseButtonDown(1);
     }
 
     void Flip()
@@ -325,7 +319,7 @@ public class MessyController : MonoBehaviour
     private void Move()
     { 
         rb.linearVelocity = new Vector2(walkSpeed * xAxis, rb.linearVelocity.y);
-        anim.SetBool("Walking", rb.linearVelocity.x != 0 && Grounded());
+        if(!pState.canAttack || pState.canMove) anim.SetBool("Walking", rb.linearVelocity.x != 0 && Grounded());
     }
 
     void StartDash()
@@ -365,6 +359,20 @@ public class MessyController : MonoBehaviour
 
         yield return new WaitForSeconds(dashCooldown);
         canDash = true;
+    }
+
+    private void Block()
+    {
+        if (block)
+        {
+        anim.SetBool("Blocking", true);
+        pState.Blocking = true;
+        } else
+        {
+            anim.SetBool("Blocking", false);
+            pState.Blocking = false;
+        }
+
     }
 
     IEnumerator AttackCooldown()
@@ -436,7 +444,7 @@ public class MessyController : MonoBehaviour
             GameObject slashType = attackType[AttackCounter].effect;
 
                 Hit(damageType, SideAttackTransform, SideAttackArea, ref pState.recoilingX, recoilXSpeed);
-                Instantiate(slashType, SideAttackTransform);
+                SlashEffectAtAngle(slashType, 0, SideAttackTransform);
 
             AttackCounter++;
         }
@@ -455,29 +463,30 @@ public class MessyController : MonoBehaviour
             anim.SetTrigger("JumpAttack");
 
             int damageType = 1;
-            GameObject slashType = slashEffect1;
 
-            if (yAxis == 0 || yAxis < 0)
+            audioManager.PlaySFX(audioManager.attack);
+
+
+            if (yAxis == 0)
             {
                 Hit(damageType, SideAttackTransform, SideAttackArea, ref pState.recoilingX, recoilXSpeed);
-                Instantiate(slashType, SideAttackTransform);
+                SlashEffectAtAngle(slashEffect1, 0, SideAttackTransform);
+
+                Debug.Log("Side");
             }
             else if (yAxis > 0)
             {
                 Hit(damageType, UpAttackTransform, UpAttackArea, ref pState.recoilingY, recoilYSpeed);
-                SlashEffectAtAngle(slashType, 90, UpAttackTransform);
+                SlashEffectAtAngle(slashEffect1, 90, UpAttackTransform);
+                Debug.Log("Up");
             }
             else if (yAxis < 0 && !Grounded())
             {
                 Hit(damageType, DownAttackTransform, DownAttackArea, ref pState.recoilingY, recoilYSpeed);
                 SlashEffectAtAngle(slashEffect1, -90, DownAttackTransform);
+                Debug.Log("Down");
             }
-
-            AttackCounter++;
         }
-        if (AttackCounter >= MaxAttack) AttackCounter = 0;
-        //if (timeSinceAttck >= timeBetweenAttack) AttackCounter = 0;
-
     }
 
     void Hit(int damage, Transform _attackTransform, Vector2 _attackArea, ref bool _recoilDir, float _recoilStrength)
@@ -497,11 +506,11 @@ public class MessyController : MonoBehaviour
             }
         }
     }
-    void SlashEffectAtAngle(GameObject _slashEffect, int _effectAngle, Transform _attackTransform)
+   void SlashEffectAtAngle(GameObject _slashEffect, int _effectAngle, Transform _attackTransform)
     {
-        _slashEffect = Instantiate(_slashEffect, _attackTransform);
-        _slashEffect.transform.eulerAngles = new Vector3(0, 0, _effectAngle);
-        _slashEffect.transform.localScale = new Vector2(transform.localScale.x, transform.localScale.y);
+        GameObject slash = Instantiate(_slashEffect, _attackTransform.position, Quaternion.identity);
+        slash.transform.eulerAngles = new Vector3(0, 0, _effectAngle);
+        slash.transform.localScale = new Vector2(_slashEffect.transform.localScale.x, _slashEffect.transform.localScale.y);
     }
     void Recoil()
     {
@@ -570,9 +579,12 @@ public class MessyController : MonoBehaviour
     }
     public void TakeDamage(float _damage)
     {
-        health -= Mathf.RoundToInt(_damage);
-        StartCoroutine(StopTakingDamage());
-        audioManager.PlaySFX(audioManager.hurt);
+
+            health -= Mathf.RoundToInt(_damage);
+            StartCoroutine(StopTakingDamage());
+            audioManager.PlaySFX(audioManager.hurt);
+        
+       
     }
     IEnumerator StopTakingDamage()
     {
@@ -704,21 +716,6 @@ public class MessyController : MonoBehaviour
         }
     }
 
-    public bool GetCanDash()
-    {
-        return canDash;
-    }
-
-    public bool GetCanUseProjectile()
-    {
-        return canUseProjectile;
-    }
-
-    public bool GetCanHeal()
-    {
-        return canHeal;
-    }
-
     void FireProjectile(Vector2 direction)
     {
         GameObject projectile = Instantiate(projectilePrefab, transform.position, Quaternion.identity);
@@ -777,5 +774,21 @@ public class MessyController : MonoBehaviour
         summoned.transform.SetParent(transform);
         return summoned;
     }
+
+    public bool GetCanDash()
+    {
+        return canDash;
+    }
+    
+    public bool GetCanUseProjectile()
+    {
+        return canUseProjectile;
+    }
+    
+    public bool GetCanHeal()
+    {
+        return canHeal;
+    }
+
 
 }

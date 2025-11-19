@@ -180,6 +180,7 @@ MonoBehaviour:
   background: {fileID: 8300000, guid: 7bfe5eedccaae41838563cff4b29eb4a, type: 3}
   attack: {fileID: 8300000, guid: 62e48d51911a9294aab8284e2a117204, type: 3}
   attack2: {fileID: 8300000, guid: ecb642c8078cb814fb9efb6b2b223cf6, type: 3}
+  attack3: {fileID: 8300000, guid: e82bbf25f546510468b7945834cf6b6f, type: 3}
   hurt: {fileID: 8300000, guid: fd25a15f9797641458336cccfb445343, type: 3}
   hurt2: {fileID: 8300000, guid: 56703418e3aed4c47a5f6622816b8e41, type: 3}
   heal: {fileID: 8300000, guid: d654174ef194bd7479bf4b8d8f753318, type: 3}

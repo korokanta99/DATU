@@ -251,6 +251,10 @@ MonoBehaviour:
   attackCooldown: 1.5
   AttackBoxTransform: {fileID: 8486081089254257164}
   AttackBoxArea: {x: 3, y: 4.08}
+  attackableLayer:
+    serializedVersion: 2
+    m_Bits: 128
+  slashEffect1: {fileID: 4715091655050610533, guid: c93c068abfdeb54498a3531105b9a90d, type: 3}
   nextSceneName: Stage_4_END
 --- !u!1 &4001006009866948811
 GameObject:

@@ -4,21 +4,23 @@ using UnityEngine.SceneManagement;
 
 public class SceneController : MonoBehaviour
 {
-    public static SceneController instance;
+    public static SceneController Instance;
     [SerializeField] Animator TransitionAnim;
 
-    private void Awake()
+           void Awake()
     {
-        if(instance == null)
-        {
-            instance = this;
-            DontDestroyOnLoad(gameObject);
-        }
-        else
+        if (Instance != null && Instance != this)
         {
             Destroy(gameObject);
         }
-    }
+        else
+        {
+            Instance = this;
+        }
+        
+        DontDestroyOnLoad(gameObject);
+    } 
+
     public void NextLevel()
     {
         StartCoroutine(LoadLevel());

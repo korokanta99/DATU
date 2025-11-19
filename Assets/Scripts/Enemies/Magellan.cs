@@ -1,6 +1,7 @@
 using System.Collections;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using UnityEngine.UI;
 
 public class Magellan : Enemy
 {
@@ -31,6 +32,9 @@ public class Magellan : Enemy
     [SerializeField] private Transform AttackBoxTransform; //the middle of the side attack area
     [SerializeField] private Vector2 AttackBoxArea; //how large the area of side attack is
 
+    [SerializeField] private LayerMask attackableLayer;
+    [SerializeField] private GameObject slashEffect1; //the effect of the slash 1
+
     private bool isAttacking = false;
     private bool isDead = false;
     private Animator anim;
@@ -38,11 +42,11 @@ public class Magellan : Enemy
     [Header("Scene Transition")]
     [SerializeField] private string nextSceneName;
 
-    protected void Start()
+    protected void                 Start()
     {
+
         anim = GetComponent<Animator>();
         patrolStartPos = transform.position;
-        health = 5f; // default health
         attackRange = AttackBoxArea.x;
         rb.freezeRotation = true;
     }
@@ -109,6 +113,8 @@ public class Magellan : Enemy
             StartCoroutine(SwitchPatrolDirection());
     }
 
+    
+
 
     private IEnumerator SwitchPatrolDirection()
     {
@@ -143,47 +149,43 @@ public class Magellan : Enemy
         isAttacking = true;
         anim.SetBool("Walking", false);
 
-        // Randomly pick attack type
-        //int attackType = Random.Range(0, 2);
-        //string animTrigger = (attackType == 0) ? "AttackA" : "AttackB";
-
         yield return new WaitForSeconds(attackDelay);
         anim.SetTrigger("Attack");
         MessyController.Instance.TakeDamage(damage);
-        //DoAttack();
+
+        Collider2D[] objectsToHit = Physics2D.OverlapBoxAll(AttackBoxTransform.position, AttackBoxArea, 0, attackableLayer);
+
+        for (int i = 0; i < objectsToHit.Length; i++)
+        {
+            if (objectsToHit[i].GetComponent<MessyController>() != null)
+            {
+                objectsToHit[i].GetComponent<MessyController>().TakeDamage(1);
+            }
+        }
+
+        SlashEffectAtAngle(slashEffect1, 0, AttackBoxTransform);
 
         yield return new WaitForSeconds(attackCooldown);
         isAttacking = false;
     }
 
-    //private void DoAttack()
-    //{
-    //    Collider2D[] hits = Physics2D.OverlapBoxAll(AttackBoxTransform.position, AttackBoxArea, 0f, LayerMask.GetMask("Player"));
-
-    //    foreach (var hit in hits)
-    //    {
-    //        if (hit.CompareTag("Player"))
-    //            MessyController.Instance.TakeDamage(damage);
-    //    }
-    //}
-
     public override void EnemyHit(float _damageDone, Vector2 _hitDirection, float _hitForce)
     {
         base.EnemyHit(_damageDone, _hitDirection, _hitForce);
 
-        if (audioManager == null)
-        {
-            Debug.LogError("AudioManager is NULL!");
-        }
-        else
-        {
-            Debug.Log("Playing attack sound");
-        }
+        audioManager.PlaySFX(audioManager.hurt2);
 
         if (health <= 0)
         {
             Die();
         }
+    }
+       void SlashEffectAtAngle(GameObject _slashEffect, int _effectAngle, Transform _attackTransform)
+    {
+        GameObject slash = Instantiate(_slashEffect, _attackTransform.position, Quaternion.identity);
+        slash.transform.eulerAngles = new Vector3(0, 0, _effectAngle);
+        slash.transform.localScale = new Vector2(_slashEffect.transform.localScale.x, _slashEffect.transform.localScale.y);
+
     }
 
     private IEnumerator Hitstun()
@@ -194,37 +196,97 @@ public class Magellan : Enemy
         isRecoiling = false;
     }
 
-    private void Die()
+ // ... (Your existing code)
+
+// In Magellan.cs
+
+private void Die()
     {
         isDead = true;
-        anim.SetTrigger("Die");
+        
+        // 1. Parameter Fix: This MUST match the Animator's TRIGGER parameter name (MagellansTransformation)
+        anim.SetTrigger("Magellans Transformation"); 
+        
         rb.linearVelocity = Vector2.zero;
-        // Destroy(gameObject, anim.GetCurrentAnimatorStateInfo(0).length);
-        StartCoroutine(DeathSequence());
+        
+        // 2. Clip Name Fix: This MUST match the exact animation clip name, 
+        // including the apostrophe and space, which is causing the 'not found' error.
+        float animationLength = GetAnimationLength("Magellan's Transformation");
+        
+        StartCoroutine(DeathSequence(animationLength));
     }
-private IEnumerator DeathSequence()
+    
+    // NEW HELPER METHOD: Get the duration of a specific animation clip
+    private float GetAnimationLength(string clipName)
+    {
+        if (anim == null) return 0f;
+
+        // Get the current animator controller
+        RuntimeAnimatorController ac = anim.runtimeAnimatorController;
+        
+        // Loop through all animation clips in the controller
+        foreach (AnimationClip clip in ac.animationClips)
+        {
+            // The clip name must exactly match the string passed in Die()
+            if (clip.name == clipName)
+            {
+                return clip.length;
+            }
+        }
+        
+        Debug.LogWarning($"Animation clip '{clipName}' not found in the Animator Controller.");
+        return 0f; // Return 0 if the clip is not found
+    }
+
+private IEnumerator DeathSequence(float animationDuration)
 {
-    // Wait until the death animation finishes
-    yield return new WaitForSeconds(anim.GetCurrentAnimatorStateInfo(0).length * 0.95f);
+    // ------------------------------------------------------------------
+    // NEW: Wait for the animation to finish playing before starting the fade.
+    yield return new WaitForSeconds(animationDuration);
+    // ------------------------------------------------------------------
 
-    // Create corpse sprite object before destroying
-    GameObject corpse = new GameObject("EnemyCorpse");
-    SpriteRenderer sr = corpse.AddComponent<SpriteRenderer>();
-    sr.sprite = GetComponent<SpriteRenderer>().sprite; // current frame of the dead enemy
-    sr.sortingLayerID = GetComponent<SpriteRenderer>().sortingLayerID;
-    sr.sortingOrder = GetComponent<SpriteRenderer>().sortingOrder;
-    sr.flipX = GetComponent<SpriteRenderer>().flipX;
-    corpse.transform.position = transform.position;
-    corpse.transform.localScale = transform.localScale;
+    GameObject fadeObj = new GameObject("FadeOverlay");
+    Canvas canvas = fadeObj.AddComponent<Canvas>();
+    canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+    canvas.sortingOrder = 9999; // Render on top of everything
+    
+    CanvasScaler scaler = fadeObj.AddComponent<CanvasScaler>();
+    scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+    
+    GameObject imageObj = new GameObject("FadeImage");
+    imageObj.transform.SetParent(fadeObj.transform, false);
+    
+    UnityEngine.UI.Image fadeImage = imageObj.AddComponent<UnityEngine.UI.Image>();
+    fadeImage.color = new Color(0, 0, 0, 0); // Start transparent
+    fadeImage.raycastTarget = false;
+    
+    RectTransform rectTransform = imageObj.GetComponent<RectTransform>();
+    rectTransform.anchorMin = Vector2.zero;
+    rectTransform.anchorMax = Vector2.one;
+    rectTransform.sizeDelta = Vector2.zero;
+    rectTransform.anchoredPosition = Vector2.zero;
+    
+    // Fade to black over 1 second
+    float fadeDuration = 1f;
+    float elapsed = 0f;
+    
+    while (elapsed < fadeDuration)
+    {
+        elapsed += Time.deltaTime;
+        float alpha = Mathf.Clamp01(elapsed / fadeDuration);
+        fadeImage.color = new Color(0, 0, 0, alpha);
+        yield return null;
+    }
+    
+    fadeImage.color = Color.black; // Ensure fully black
+    
+    // Wait 1 second in black screen
+    yield return new WaitForSeconds(1f);
 
-    Destroy(gameObject); // remove the enemy logic and collider
+    // No need for an extra delay here since we waited for the animation
+    // yield return new WaitForSeconds(0.5f); 
 
-    // Wait a little after death before scene transition (optional)
-    yield return new WaitForSeconds(0.5f);
-
-    // Transition to next scene
-    if (!string.IsNullOrEmpty(nextSceneName))
-        SceneManager.LoadScene(nextSceneName);
+    SceneManager.LoadSceneAsync(SceneManager.GetActiveScene().buildIndex + 1);
 }
 
 

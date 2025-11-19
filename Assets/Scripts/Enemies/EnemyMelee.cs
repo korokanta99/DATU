@@ -13,6 +13,8 @@ public class EnemyMelee : Enemy
     [Header("Aggro Settings")]
     //[SerializeField] private float aggroRange = 6f;
     [SerializeField] private float attackRange;
+
+    [SerializeField] private LayerMask attackableLayer;
     private bool isAggroed = false;
 
     [SerializeField] private Transform AggroBoxTransform; //the middle of the side attack area
@@ -29,6 +31,7 @@ public class EnemyMelee : Enemy
     [SerializeField] private float attackCooldown = 1.5f;
     [SerializeField] private Transform AttackBoxTransform; //the middle of the side attack area
     [SerializeField] private Vector2 AttackBoxArea; //how large the area of side attack is
+    [SerializeField] private GameObject slashEffect1; //the effect of the slash 1
 
     private bool isAttacking = false;
     private bool isDead = false;
@@ -139,47 +142,42 @@ public class EnemyMelee : Enemy
         isAttacking = true;
         anim.SetBool("Walking", false);
 
-        // Randomly pick attack type
-        //int attackType = Random.Range(0, 2);
-        //string animTrigger = (attackType == 0) ? "AttackA" : "AttackB";
-
         yield return new WaitForSeconds(attackDelay);
         anim.SetTrigger("Attack");
         MessyController.Instance.TakeDamage(damage);
-        //DoAttack();
+
+        Collider2D[] objectsToHit = Physics2D.OverlapBoxAll(AttackBoxTransform.position, AttackBoxArea, 0, attackableLayer);
+
+        for (int i = 0; i < objectsToHit.Length; i++)
+        {
+            if (objectsToHit[i].GetComponent<MessyController>() != null)
+            {
+                objectsToHit[i].GetComponent<MessyController>().TakeDamage(1);
+            }
+        }
+
+        SlashEffectAtAngle(slashEffect1, 0, AttackBoxTransform);
 
         yield return new WaitForSeconds(attackCooldown);
         isAttacking = false;
     }
 
-    //private void DoAttack()
-    //{
-    //    Collider2D[] hits = Physics2D.OverlapBoxAll(AttackBoxTransform.position, AttackBoxArea, 0f, LayerMask.GetMask("Player"));
-
-    //    foreach (var hit in hits)
-    //    {
-    //        if (hit.CompareTag("Player"))
-    //            MessyController.Instance.TakeDamage(damage);
-    //    }
-    //}
-
     public override void EnemyHit(float _damageDone, Vector2 _hitDirection, float _hitForce)
     {
         base.EnemyHit(_damageDone, _hitDirection, _hitForce);
 
-        if (audioManager == null)
-        {
-            Debug.LogError("AudioManager is NULL!");
-        }
-        else
-        {
-            Debug.Log("Playing attack sound");
-        }
+        audioManager.PlaySFX(audioManager.hurt2);
 
         if (health <= 0)
         {
             Die();
         }
+    }
+       void SlashEffectAtAngle(GameObject _slashEffect, int _effectAngle, Transform _attackTransform)
+    {
+        GameObject slash = Instantiate(_slashEffect, _attackTransform.position, Quaternion.identity);
+        slash.transform.eulerAngles = new Vector3(0, 0, _effectAngle);
+        slash.transform.localScale = new Vector2(_slashEffect.transform.localScale.x, _slashEffect.transform.localScale.y);
     }
 
     private IEnumerator Hitstun()

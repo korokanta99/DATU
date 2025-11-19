@@ -117,7 +117,7 @@ SpriteRenderer:
   m_SortingLayer: 8
   m_SortingOrder: 0
   m_Sprite: {fileID: -4021766269207156774, guid: 92ddd4299a25a784199c07bf2925cf30, type: 3}
-  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_Color: {r: 0.7924528, g: 0.7924528, b: 0.7924528, a: 1}
   m_FlipX: 0
   m_FlipY: 0
   m_DrawMode: 0
@@ -216,12 +216,14 @@ MonoBehaviour:
   recoilLength: 1
   recoilFactor: 1
   isRecoiling: 0
-  player: {fileID: 198150258451392130, guid: 5af14853559e09c469f3fafca5c9bfee, type: 3}
   speed: 1
   damage: 1
   patrolRange: 3
   idleWaitTime: 2
   attackRange: 1.5
+  attackableLayer:
+    serializedVersion: 2
+    m_Bits: 128
   AggroBoxTransform: {fileID: 6900646845864027146}
   AggroBoxArea: {x: 7, y: 3}
   AggroTimer: 10
@@ -230,6 +232,7 @@ MonoBehaviour:
   attackCooldown: 2
   AttackBoxTransform: {fileID: 8486081089254257164}
   AttackBoxArea: {x: 3, y: 2}
+  slashEffect1: {fileID: 4715091655050610533, guid: c93c068abfdeb54498a3531105b9a90d, type: 3}
 --- !u!95 &3343765550804145176
 Animator:
   serializedVersion: 7
